@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: 
+**URL**: https://click-pops.vercel.app
 
 Follow these steps:
 
