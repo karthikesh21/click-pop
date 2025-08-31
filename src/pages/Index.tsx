@@ -1,14 +1,18 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useEffect } from 'react';
+import Game from '@/components/Game';
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    // Update page title and meta description for SEO
+    document.title = 'Reaction Speed Game - Test Your Reflexes | Lightning Fast Mini-Game';
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Test your reaction speed in this addictive mini-game! Click targets before time runs out. Features leaderboards, difficulty scaling, and smooth animations. Perfect for mobile and desktop.');
+    }
+  }, []);
+
+  return <Game />;
 };
 
 export default Index;
