@@ -1,105 +1,165 @@
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useRef, useEffect, useCallback } from "react";
 
 interface ClickSparkProps {
-  children: React.ReactNode;
   sparkColor?: string;
   sparkSize?: number;
   sparkRadius?: number;
   sparkCount?: number;
   duration?: number;
+  easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
+  extraScale?: number;
+  children?: React.ReactNode;
 }
 
 interface Spark {
-  id: number;
   x: number;
   y: number;
   angle: number;
-  distance: number;
+  startTime: number;
 }
 
 const ClickSpark: React.FC<ClickSparkProps> = ({
-  children,
-  sparkColor = '#fff',
+  sparkColor = "#fff",
   sparkSize = 10,
   sparkRadius = 15,
   sparkCount = 8,
-  duration = 400
+  duration = 400,
+  easing = "ease-out",
+  extraScale = 1.0,
+  children
 }) => {
-  const [sparks, setSparks] = useState<Spark[]>([]);
-  const sparkIdRef = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sparksRef = useRef<Spark[]>([]);
+  const startTimeRef = useRef<number | null>(null);
 
-  const createSparks = (e: React.MouseEvent) => {
-    if (!containerRef.current) return;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const centerX = e.clientX - rect.left;
-    const centerY = e.clientY - rect.top;
+    const parent = canvas.parentElement;
+    if (!parent) return;
 
-    const newSparks: Spark[] = [];
-    
-    for (let i = 0; i < sparkCount; i++) {
-      const angle = (360 / sparkCount) * i;
-      const distance = sparkRadius + Math.random() * sparkRadius * 0.5;
-      
-      newSparks.push({
-        id: sparkIdRef.current++,
-        x: centerX,
-        y: centerY,
-        angle,
-        distance
+    let resizeTimeout: NodeJS.Timeout;
+
+    const resizeCanvas = () => {
+      const { width, height } = parent.getBoundingClientRect();
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+    };
+
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(resizeCanvas, 100);
+    };
+
+    const ro = new ResizeObserver(handleResize);
+    ro.observe(parent);
+
+    resizeCanvas();
+
+    return () => {
+      ro.disconnect();
+      clearTimeout(resizeTimeout);
+    };
+  }, []);
+
+  const easeFunc = useCallback(
+    (t: number) => {
+      switch (easing) {
+        case "linear":
+          return t;
+        case "ease-in":
+          return t * t;
+        case "ease-in-out":
+          return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        default:
+          return t * (2 - t);
+      }
+    },
+    [easing]
+  );
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationId: number;
+
+    const draw = (timestamp: number) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+      }
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+
+      sparksRef.current = sparksRef.current.filter((spark: Spark) => {
+        const elapsed = timestamp - spark.startTime;
+        if (elapsed >= duration) {
+          return false;
+        }
+
+        const progress = elapsed / duration;
+        const eased = easeFunc(progress);
+
+        const distance = eased * sparkRadius * extraScale;
+        const lineLength = sparkSize * (1 - eased);
+
+        const x1 = spark.x + distance * Math.cos(spark.angle);
+        const y1 = spark.y + distance * Math.sin(spark.angle);
+        const x2 = spark.x + (distance + lineLength) * Math.cos(spark.angle);
+        const y2 = spark.y + (distance + lineLength) * Math.sin(spark.angle);
+
+        ctx.strokeStyle = sparkColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        return true;
       });
-    }
 
-    setSparks(newSparks);
+      animationId = requestAnimationFrame(draw);
+    };
 
-    // Clear sparks after animation
-    setTimeout(() => {
-      setSparks([]);
-    }, duration);
+    animationId = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, [sparkColor, sparkSize, sparkRadius, sparkCount, duration, easeFunc, extraScale]);
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const now = performance.now();
+    const newSparks: Spark[] = Array.from({ length: sparkCount }, (_, i) => ({
+      x,
+      y,
+      angle: (2 * Math.PI * i) / sparkCount,
+      startTime: now,
+    }));
+
+    sparksRef.current.push(...newSparks);
   };
 
   return (
-    <div 
-      ref={containerRef}
-      className="relative inline-block"
-      onClick={createSparks}
+    <div
+      className="relative w-full h-full"
+      onClick={handleClick}
     >
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 pointer-events-none"
+      />
       {children}
-      
-      <AnimatePresence>
-        {sparks.map((spark) => (
-          <motion.div
-            key={spark.id}
-            className="absolute pointer-events-none rounded-full"
-            style={{
-              width: sparkSize,
-              height: sparkSize,
-              backgroundColor: sparkColor,
-              left: spark.x - sparkSize / 2,
-              top: spark.y - sparkSize / 2,
-              boxShadow: `0 0 10px ${sparkColor}`,
-            }}
-            initial={{
-              x: 0,
-              y: 0,
-              scale: 1,
-              opacity: 1,
-            }}
-            animate={{
-              x: Math.cos((spark.angle * Math.PI) / 180) * spark.distance,
-              y: Math.sin((spark.angle * Math.PI) / 180) * spark.distance,
-              scale: 0,
-              opacity: 0,
-            }}
-            transition={{
-              duration: duration / 1000,
-              ease: 'circOut',
-            }}
-          />
-        ))}
-      </AnimatePresence>
     </div>
   );
 };
