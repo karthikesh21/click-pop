@@ -57,12 +57,11 @@ const Target: React.FC<TargetProps> = ({
       }}
     >
       <ClickSpark
-        sparkColor="#ffffff"
-        sparkSize={15}
-        sparkRadius={30}
-        sparkCount={16}
-        duration={600}
-        extraScale={1.5}
+        sparkColor="#fff"
+        sparkSize={10}
+        sparkRadius={15}
+        sparkCount={8}
+        duration={400}
       >
         <motion.div
           className={`flex items-center justify-center text-white font-bold text-2xl cursor-pointer overflow-hidden relative`}
