@@ -1,4 +1,4 @@
-import React from 'react';
+        import React from 'react';
 import { motion } from 'framer-motion';
 import ClickSpark from './ClickSpark';
 
@@ -56,7 +56,7 @@ const Target: React.FC<TargetProps> = ({
         }
       }}
     >
-      <ClickSpark
+     <ClickSpark
         sparkColor="#fff"
         sparkSize={10}
         sparkRadius={15}
